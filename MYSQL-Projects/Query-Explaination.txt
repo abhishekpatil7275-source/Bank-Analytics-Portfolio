@@ -1,0 +1,445 @@
+# Banking & Financial Data Analysis – SQL Queries & Insights
+
+## 1. Loan Portfolio Metrics
+
+### Query 1: Total Clients
+
+```sql
+SELECT COUNT(DISTINCT `Client id`) AS total_clients
+FROM banking_data;
+```
+
+- **What it does:** Counts the total number of unique customers registered with the bank.
+- **Business Insight:** Provides an understanding of the size of the bank's total customer base.
+
+---
+
+### Query 2: Active Clients
+
+```sql
+SELECT COUNT(DISTINCT `Client id`) AS active_clients
+FROM banking_data
+WHERE `Loan Status` = 'Active';
+```
+
+- **What it does:** Calculates the number of customers who currently have active loans.
+- **Business Insight:** Understands the proportion of active customers who are currently doing direct financial transactions with the bank.
+
+---
+
+### Query 3: New Clients
+
+```sql
+WITH FirstDisbursement AS (
+    SELECT `Client id`, MIN(STR_TO_DATE(`Disbursement Date`, '%Y-%m-%d %H:%i:%s')) AS first_date
+    FROM banking_data
+    GROUP BY `Client id`
+)
+SELECT DATE_FORMAT(first_date, '%Y-%m') AS month_year, COUNT(`Client id`) AS new_clients
+FROM FirstDisbursement
+GROUP BY month_year;
+```
+
+- **What it does:** Measures the number of new customers added each month from the date of each customer's first loan disbursement.
+- **Business Insight:** This shows how fast the bank is attracting new customers each month (Customer Acquisition Trend).
+
+---
+
+### Query 4: Client Retention Rate
+
+```sql
+WITH ClientLoanCounts AS (
+    SELECT `Client id`, COUNT(`Account ID`) AS total_loans
+    FROM banking_data
+    GROUP BY `Client id`
+)
+SELECT
+    ROUND((COUNT(CASE WHEN total_loans > 1 THEN 1 END) * 100.0 / COUNT(*)), 1) AS retention_rate_pct
+FROM ClientLoanCounts;
+```
+
+- **What it does:** Calculates the percentage of customers who take loans more than once.
+- **Business Insight:** Understands the bank's ability to retain customers and the trust of existing customers in the bank.
+
+---
+
+### Query 5: Total Loan Amount Disbursed
+
+```sql
+SELECT SUM(`Loan Amount`) AS total_disbursed_amount
+FROM banking_data;
+```
+
+- **What it does:** It sums up the total amount of loans the bank has disbursed to customers.
+- **Business Insight:** It shows the size of the bank's total loan portfolio and its ability to distribute capital.
+
+---
+
+### Query 6: Total Funded Amount
+
+```sql
+SELECT SUM(`Funded Amount`) AS total_funded_amount
+FROM banking_data;
+```
+
+- **What it does:** Measures the total amount actually approved/funded by investors or banks.
+- **Business Insight:** Helps understand the difference between the loan requested and the funds actually available.
+
+---
+
+### Query 7: Average Loan Size
+
+```sql
+SELECT ROUND(AVG(`Loan Amount`), 2) AS avg_loan_size
+FROM banking_data;
+```
+
+- **What it does:** Calculates the average loan amount disbursed per account.
+- **Business Insight:** Determines whether the bank is focusing primarily on retail (small) loans or corporate (large) loans.
+
+---
+
+### Query 8: Loan Growth %
+
+```sql
+WITH MonthlyLoans AS (
+    SELECT
+        DATE_FORMAT(STR_TO_DATE(`Disbursement Date`, '%Y-%m-%d %H:%i:%s'), '%Y-%m') AS month_year,
+        SUM(`Loan Amount`) AS current_period_amount
+    FROM banking_data
+    GROUP BY month_year
+)
+SELECT
+    month_year,
+    current_period_amount,
+    LAG(current_period_amount, 1) OVER (ORDER BY month_year) AS previous_period_amount,
+    ROUND(((current_period_amount - LAG(current_period_amount, 1) OVER (ORDER BY month_year)) / LAG(current_period_amount, 1) OVER (ORDER BY month_year)) * 100, 2) AS loan_growth_pct
+FROM MonthlyLoans;
+```
+
+- **What it does:** Calculates the percentage increase/decrease in loan disbursements in the current month compared to the previous month (Month-over-Month Growth) using the `LAG()` window function.
+- **Business Insight:** Understands the bank's business growth pace and seasonal trends in loan demand.
+
+---
+
+## 2. Repayment & Financial Recovery
+
+### Query 9: Total Repayments Collected
+
+```sql
+SELECT SUM(`Total Pymnt`) AS total_repayments_collected
+FROM banking_data;
+```
+
+- **What it does:** Measures the total amount (principal + interest) collected from customers on loans.
+- **Business Insight:** Shows the total cash inflow actually received by the bank.
+
+---
+
+### Query 10: Principal Recovery Rate
+
+```sql
+SELECT ROUND((SUM(`Total Rec Prncp`) / SUM(`Loan Amount`)) * 100, 2) AS principal_recovery_rate_pct
+FROM banking_data;
+```
+
+- **What it does:** Finds what percentage of the total principal allocated has been recovered.
+- **Business Insight:** Understands whether the bank's core capital is safe and how efficient it is in recovering principal.
+
+---
+
+### Query 11: Interest Income
+
+```sql
+SELECT ROUND(SUM(`Total Rrec int`), 2) AS total_interest_income
+FROM banking_data;
+```
+
+- **What it does:** It shows the bank's interest income by summing up the total interest earned.
+- **Business Insight:** It can measure the bank's main source of income and actual profit (Revenue Generation).
+
+---
+
+## 3. Risk & Portfolio Performance
+
+### Query 12: Default Rate
+
+```sql
+SELECT ROUND((SUM(CASE WHEN `Is Default Loan` = 'Y' THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) AS default_rate_pct
+FROM banking_data;
+```
+
+- **What it does:** Calculates the percentage of total loans that have defaulted due to non-repayment.
+- **Business Insight:** Understands the level of credit risk. If this rate is high, then the loan allocation rules need to be tightened.
+
+---
+
+### Query 13: Delinquency Rate
+
+```sql
+SELECT ROUND((SUM(CASE WHEN `Is Delinquent Loan` = 'Y' THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) AS delinquency_rate_pct
+FROM banking_data;
+```
+
+- **What it does:** Calculates the percentage of loans that are not paid on time (Late Payment/Delinquent).
+- **Business Insight:** It provides an early warning signal before a loan defaults, allowing the recovery team to take timely action.
+
+---
+
+### Query 14: On-Time Repayment %
+
+```sql
+SELECT ROUND((SUM(CASE WHEN `Repayment Behavior` = 'On-Time' THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) AS on_time_repayment_pct
+FROM banking_data;
+```
+
+- **What it does:** Measures the percentage of customers who pay their installments on time within a given period.
+- **Business Insight:** Indicates that customer discipline and portfolio health are good.
+
+---
+
+## 4. Branch & Product Performance
+
+### Query 15: Loan Distribution by Branch
+
+```sql
+SELECT `Branch Name_x` AS branch_name, SUM(`Loan Amount`) AS total_loan_amount
+FROM banking_data
+GROUP BY `Branch Name_x`
+ORDER BY total_loan_amount DESC;
+```
+
+- **What it does:** Creates a list of branches that have given the most loans by summing the total loans disbursed branch-wise.
+- **Business Insight:** It becomes clear which branches are leading the business and which branches need improvement.
+
+---
+
+### Query 16: Branch Performance Category Split
+
+```sql
+SELECT `Branch Performance Category`, COUNT(*) AS total_loans, SUM(`Loan Amount`) AS total_loan_amount
+FROM banking_data
+GROUP BY `Branch Performance Category`;
+```
+
+- **What it does:** Categorizes total loans and amounts across branches according to performance categories (High, Medium, Low Performance).
+- **Business Insight:** Helps improve low-performing branches by studying the policies of high-performing branches.
+
+---
+
+### Query 17: Product-wise Loan Volume
+
+```sql
+SELECT `Product Id`, SUM(`Loan Amount`) AS total_loan_volume
+FROM banking_data
+GROUP BY `Product Id`
+ORDER BY total_loan_volume DESC;
+```
+
+- **What it does:** Sums up the total amount disbursed across loan products (e.g. home loan, personal loan).
+- **Business Insight:** Understands which financial products are most popular in the market.
+
+---
+
+### Query 18: Product Profitability
+
+```sql
+SELECT `Product Id`, ROUND(SUM(`Total Rrec int`), 2) AS total_interest_income
+FROM banking_data
+GROUP BY `Product Id`
+ORDER BY total_interest_income DESC;
+```
+
+- **What it does:** It sums up the interest income earned by the bank from each loan product.
+- **Business Insight:** It identifies which products are most profitable for the bank.
+
+---
+
+## 5. Demographic & Risk Segmentation
+
+### Query 19: Demographics & Age Risk
+
+```sql
+SELECT
+    `Age` AS age_group,
+    COUNT(`Account ID`) AS total_loans,
+    SUM(`Loan Amount`) AS total_disbursed,
+    ROUND((SUM(CASE WHEN `Is Default Loan` = 'Y' THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) AS default_rate_pct
+FROM banking_data
+GROUP BY `Age`
+ORDER BY default_rate_pct DESC;
+```
+
+- **What it does:** Analyzes loan distribution by age group and default rates for the respective age groups.
+- **Business Insight:** Understands which age groups are high risk for lending to customers and sets age-based rules accordingly.
+
+---
+
+### Query 20: Geographical Risk Profile
+
+```sql
+SELECT
+    `State Name` AS state_name,
+    COUNT(`Account ID`) AS total_loans,
+    SUM(`Loan Amount`) AS total_disbursed,
+    ROUND((SUM(CASE WHEN `Is Default Loan` = 'Y' THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) AS default_rate_pct,
+    ROUND((SUM(CASE WHEN `Is Delinquent Loan` = 'Y' THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) AS delinquency_rate_pct
+FROM banking_data
+GROUP BY `State Name`
+ORDER BY total_disbursed DESC;
+```
+
+- **What it does:** Classifies loan allocation, default rate, and delinquency rate by state.
+- **Business Insight:** Helps identify geographical risk; more recovery efforts can be focused in specific states.
+
+---
+
+### Query 21: Loan Purpose Analysis
+
+```sql
+SELECT
+    `Purpose Category` AS purpose,
+    COUNT(`Account ID`) AS total_loans,
+    SUM(`Loan Amount`) AS total_disbursed,
+    ROUND((SUM(CASE WHEN `Is Default Loan` = 'Y' THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) AS default_rate_pct,
+    ROUND(AVG(`Int Rate`) * 100, 2) AS avg_interest_rate_pct
+FROM banking_data
+GROUP BY `Purpose Category`
+ORDER BY total_disbursed DESC;
+```
+
+- **What it does:** Checks the number of loans, default rates, and average interest rates by loan reason (e.g., medical, business, wedding).
+- **Business Insight:** Makes it easier to charge higher interest rates or set limits on high-risk loan reasons.
+
+---
+
+### Query 22: Grade vs Risk Pricing
+
+```sql
+SELECT
+    `Grade` AS loan_grade,
+    COUNT(`Account ID`) AS total_loans,
+    SUM(`Loan Amount`) AS total_disbursed,
+    ROUND(AVG(`Credit Score`), 0) AS avg_credit_score,
+    ROUND(AVG(`Int Rate`) * 100, 2) AS avg_interest_rate_pct,
+    ROUND((SUM(CASE WHEN `Is Default Loan` = 'Y' THEN 1 ELSE 0 END) * 100.0 / COUNT(*)), 2) AS default_rate_pct
+FROM banking_data
+GROUP BY `Grade`
+ORDER BY loan_grade ASC;
+```
+
+- **What it does:** Compares average credit scores, interest rates, and default rates by loan grade (Grade A to G).
+- **Business Insight:** It shows whether the bank's risk pricing is appropriate (higher interest rates and higher default rates for those with lower credit scores/bad grades).
+
+---
+
+## 6. Credit & Debit Transaction Analytics
+
+### Query 23: Total Credit Amount
+
+```sql
+SELECT SUM(`Amount`) AS Total_Credit_Amount
+FROM `debit_and_credit banking_data`
+WHERE `Transaction Type` = 'Credit';
+```
+
+- **What it does:** Totals all the amounts credited to bank accounts.
+- **Business Insight:** Shows how much money is being deposited into the account from customers (Liquidity & Deposit Inflow).
+
+---
+
+### Query 24: Total Debit Amount
+
+```sql
+SELECT SUM(`Amount`) AS Total_Debit_Amount
+FROM `debit_and_credit banking_data`
+WHERE `Transaction Type` = 'Debit';
+```
+
+- **What it does:** Totals the amount debited or spent from accounts.
+- **Business Insight:** Understands the overall spending pattern of customers.
+
+---
+
+### Query 25: Credit to Debit Ratio
+
+```sql
+SELECT
+  SUM(CASE WHEN `Transaction Type` = 'Credit' THEN `Amount` ELSE 0 END) /
+  SUM(CASE WHEN `Transaction Type` = 'Debit' THEN `Amount` ELSE 0 END) AS Credit_To_Debit_Ratio
+FROM `debit_and_credit banking_data`;
+```
+
+- **What it does:** Calculates the ratio of credit and debit amounts.
+- **Business Insight:** If the ratio is greater than 1, the balance in the accounts is increasing (positive cash flow). If it is less than 1, customers are spending more than they have deposited.
+
+---
+
+### Query 26: Net Transaction Amount
+
+```sql
+SELECT
+  SUM(CASE WHEN `Transaction Type` = 'Credit' THEN `Amount` ELSE 0 END) -
+  SUM(CASE WHEN `Transaction Type` = 'Debit' THEN `Amount` ELSE 0 END) AS Net_Transaction_Amount
+FROM `debit_and_credit banking_data`;
+```
+
+- **What it does:** Calculates Net Liquidity by subtracting Total Expenses from Total Deposits.
+- **Business Insight:** Understands the actual excess balance remaining in accounts over a specific period of time (Net Retention).
+
+---
+
+### Query 27: Account Activity Ratio
+
+```sql
+SELECT `Account Number`,
+       (COUNT(*) / AVG(`Balance`)) AS Account_Activity_Ratio
+FROM `debit_and_credit banking_data`
+GROUP BY `Account Number`;
+```
+
+- **What it does:** Measures the number of transactions per account and the average balance in that account.
+- **Business Insight:** It can identify accounts that have high activity and low balance and assess their risk.
+
+---
+
+### Query 28: Transactions per Day/Week/Month
+
+```sql
+SELECT DATE_FORMAT(`Transaction Date`, '%Y-%m') AS Transaction_Month,
+       COUNT(*) AS Total_Transactions
+FROM `debit_and_credit banking_data`
+GROUP BY Transaction_Month
+ORDER BY Transaction_Month;
+```
+
+- **What it does:** Measures the total number of transactions per month.
+- **Business Insight:** Identifying the months when digital and banking channels are most used can help plan IT server and system loading.
+
+---
+
+### Query 29: Total Transaction Amount by Branch
+
+```sql
+SELECT `Branch`, SUM(`Amount`) AS Total_Transaction_Amount
+FROM `debit_and_credit banking_data`
+GROUP BY `Branch`
+ORDER BY Total_Transaction_Amount DESC;
+```
+
+- **What it does:** Sums up the amount of all credit and debit transactions made branch-wise.
+- **Business Insight:** Identifies the top branches handling the highest cash/digital transactions.
+
+---
+
+### Query 30: Transaction Volume by Bank
+
+```sql
+SELECT `Bank Name`, COUNT(*) AS Transaction_Volume
+FROM `debit_and_credit banking_data`
+GROUP BY `Bank Name`
+ORDER BY Transaction_Volume DESC;
+```
+
+- **What it does:** Measures the number of transactions across different banks' networks.
+- **Business Insight:** Helps understand the volume of inter-bank transactions and the transaction capacity of partner banks.
