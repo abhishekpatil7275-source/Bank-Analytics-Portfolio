@@ -1,9 +1,4 @@
 ### Tableau (`Banking_Dashbord_tableau.twbx`)
-Visual dashboard presenting loan performance, risk distribution and transaction insights.
-
-> 📸 *Add dashboard screenshots here:*
-> `![Power BI Dashboard](images/powerbi_dashboard.png)`
-> `![Tableau Dashboard](images/tableau_dashboard.png)`
 
 ---
 
